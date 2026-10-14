@@ -28,8 +28,8 @@ OWNER_ID         = ENV_ADMINS[0] if ENV_ADMINS else None  # super-admin, can man
 # The values below are only the first-run defaults, seeded into bot_settings
 # the first time init_db() runs. After that the DB is the source of truth —
 # refresh_settings() reloads these module-level names whenever they change.
-CHANNEL_LINK      = "https://t.me/ffpannel_hack"
-COMMUNITY_LINK    = "https://t.me/CyberGhostXProofs"
+CHANNEL_LINK      = "https://t.me/Uzeron_AdsBot"
+COMMUNITY_LINK    = "https://t.me/UzeronCommunity"
 HOW_TO_USE_LINK   = "https://t.me/Uzeron_Ads"
 SUPPORT_LINK      = "https://t.me/Uzeron_Ads_support"
 CONTACT_USERNAME  = "@Pandaysubscription"
@@ -194,7 +194,6 @@ def dashboard_keyboard(is_premium=False):
          {"text": "📊 Status",         "callback_data": "status"}],
         [{"text": "💬 Set Messages",   "callback_data": "setmessages"},
          {"text": "⏰ Schedule",       "callback_data": "schedule"}],
-        [{"text": "⏱️ Delays",        "callback_data": "delays"}],
         [{"text": "🚀 Start Campaign", "callback_data": "startcampaign"},
          {"text": "🛑 Stop Campaign",  "callback_data": "stopcampaign"}],
         [{"text": "🔑 Login",          "callback_data": "login"},
@@ -345,19 +344,6 @@ def schedule_keyboard(is_premium):
         [{"text": "🏠 Dashboard", "callback_data": "dashboard"}],
     ])
 
-def delay_keyboard(is_premium):
-    if not is_premium:
-        return kb([
-            [{"text": "💎 Upgrade to customize delays", "callback_data": "upgrade"}],
-            [{"text": "🏠 Dashboard", "callback_data": "dashboard"}],
-        ])
-    return kb([
-        [{"text": "✏️ Change Message Delay", "callback_data": "delay_msg"}],
-        [{"text": "✏️ Change Cycle Delay",   "callback_data": "delay_cycle"}],
-        [{"text": f"↩️ Reset to Default ({FREE_MSG_DELAY}s / {FREE_CYCLE_DELAY//60}m)", "callback_data": "delay_reset"}],
-        [{"text": "🏠 Dashboard", "callback_data": "dashboard"}],
-    ])
-
 # ═══════════════════════════════════════════════════════════════════════════
 # TEXTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -389,21 +375,20 @@ def welcome_text():
         f"🆘 Support: {SUPPORT_LINK}"
     )
 
-def dashboard_text(user, runtime, is_premium=False, expiry=None, msg_count=0, delays=None):
+def dashboard_text(user, runtime, is_premium=False, expiry=None, msg_count=0):
     phone   = user[1] if user and user[1] else "Not connected"
     msg_st  = f"✅ {msg_count} set" if msg_count else "❌ Not set"
     camp_st = "🟢 Live"  if user and user[6] else "🔴 Stopped"
-    msg_delay, cycle_delay = delays if delays else (FREE_MSG_DELAY, FREE_CYCLE_DELAY)
 
     if is_premium:
         plan_line   = f"👑 <b>PREMIUM</b> — expires {expiry}"
         groups_line = "📢 <b>Groups:</b> Unlimited"
-        delay_line  = f"⏱️ <b>Delay:</b> {msg_delay}s  |  <b>Cycle:</b> {cycle_delay//60}m {cycle_delay%60}s"
+        delay_line  = "⏱️ <b>Delay:</b> 60s  |  <b>Cycle:</b> 10m"
         runtime_line = "⏳ <b>Runtime:</b> Unlimited"
     else:
         plan_line   = "🆓 <b>FREE PLAN</b>"
         groups_line = f"📢 <b>Groups:</b> up to {FREE_MAX_GROUPS}"
-        delay_line  = f"⏱️ <b>Delay:</b> {FREE_MSG_DELAY}s  |  <b>Cycle:</b> {FREE_CYCLE_DELAY//60}m"
+        delay_line  = "⏱️ <b>Delay:</b> 60s  |  <b>Cycle:</b> 10m"
         hu = runtime / 3600
         hl = max(0, 8 - hu)
         runtime_line = f"⏳ <b>Runtime Today:</b> {hu:.1f}h / 8h  ({hl:.1f}h left)"
@@ -471,8 +456,6 @@ class Database:
         c.execute("ALTER TABLE free_users ADD COLUMN IF NOT EXISTS premium_expiry TEXT")
         c.execute(f"ALTER TABLE free_users ADD COLUMN IF NOT EXISTS schedule_start TEXT DEFAULT '{DEFAULT_SCHEDULE_START}'")
         c.execute(f"ALTER TABLE free_users ADD COLUMN IF NOT EXISTS schedule_end TEXT DEFAULT '{DEFAULT_SCHEDULE_END}'")
-        c.execute(f"ALTER TABLE free_users ADD COLUMN IF NOT EXISTS msg_delay INTEGER DEFAULT {FREE_MSG_DELAY}")
-        c.execute(f"ALTER TABLE free_users ADD COLUMN IF NOT EXISTS cycle_delay INTEGER DEFAULT {FREE_CYCLE_DELAY}")
 
         # ── Redeem codes ───────────────────────────────────────────────────
         c.execute('''CREATE TABLE IF NOT EXISTS redeem_codes (
@@ -562,8 +545,7 @@ class Database:
         c.execute('''SELECT user_id,phone,api_id,api_hash,session_string,
                      promo_message,is_active,runtime_today,last_reset,
                      warning_count,is_banned,branding_set,is_premium,
-                     premium_expiry,schedule_start,schedule_end,
-                     msg_delay,cycle_delay
+                     premium_expiry,schedule_start,schedule_end
                      FROM free_users WHERE user_id=%s''', (user_id,))
         r = c.fetchone(); conn.close(); return r
 
@@ -571,12 +553,10 @@ class Database:
         conn = self.get_conn(); c = conn.cursor()
         c.execute('SELECT user_id FROM free_users WHERE user_id=%s',(user_id,))
         if not c.fetchone():
-            c.execute('''INSERT INTO free_users(user_id,username,created_at,schedule_start,schedule_end,
-                         msg_delay,cycle_delay)
-                         VALUES(%s,%s,%s,%s,%s,%s,%s)''',
+            c.execute('''INSERT INTO free_users(user_id,username,created_at,schedule_start,schedule_end)
+                         VALUES(%s,%s,%s,%s,%s)''',
                       (user_id, username, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                       DEFAULT_SCHEDULE_START, DEFAULT_SCHEDULE_END,
-                       FREE_MSG_DELAY, FREE_CYCLE_DELAY))
+                       DEFAULT_SCHEDULE_START, DEFAULT_SCHEDULE_END))
             conn.commit()
         conn.close()
 
@@ -757,31 +737,6 @@ class Database:
             return DEFAULT_SCHEDULE_START, DEFAULT_SCHEDULE_END
         return r[0] or DEFAULT_SCHEDULE_START, r[1] or DEFAULT_SCHEDULE_END
 
-    # ── DELAYS (premium-only custom message/cycle delay) ────────────────
-    def get_delays(self, user_id):
-        conn = self.get_conn(); c = conn.cursor()
-        c.execute('SELECT msg_delay, cycle_delay FROM free_users WHERE user_id=%s', (user_id,))
-        r = c.fetchone(); conn.close()
-        if not r:
-            return FREE_MSG_DELAY, FREE_CYCLE_DELAY
-        return r[0] or FREE_MSG_DELAY, r[1] or FREE_CYCLE_DELAY
-
-    def set_msg_delay(self, user_id, seconds):
-        conn = self.get_conn(); c = conn.cursor()
-        c.execute('UPDATE free_users SET msg_delay=%s WHERE user_id=%s', (seconds, user_id))
-        conn.commit(); conn.close()
-
-    def set_cycle_delay(self, user_id, seconds):
-        conn = self.get_conn(); c = conn.cursor()
-        c.execute('UPDATE free_users SET cycle_delay=%s WHERE user_id=%s', (seconds, user_id))
-        conn.commit(); conn.close()
-
-    def reset_delays(self, user_id):
-        conn = self.get_conn(); c = conn.cursor()
-        c.execute('UPDATE free_users SET msg_delay=%s, cycle_delay=%s WHERE user_id=%s',
-                  (FREE_MSG_DELAY, FREE_CYCLE_DELAY, user_id))
-        conn.commit(); conn.close()
-
     # ── MULTIPLE PROMO MESSAGES ──────────────────────────────────────────
     def get_promo_messages(self, user_id):
         conn = self.get_conn(); c = conn.cursor()
@@ -937,7 +892,6 @@ class UzeronFreeBot:
         self.pending_new_message  = {}   # uid -> True while waiting for a new message slot's text
         self.pending_redeem       = {}   # uid -> True while waiting for a redeem code
         self.pending_schedule     = {}   # uid -> 'start' | 'end' while waiting for HH:MM text
-        self.pending_delay        = {}   # uid -> 'msg' | 'cycle' while waiting for a seconds value
         self.login_states         = {}
         self.broadcast_state      = {}   # uid -> {'step': ...} while composing an admin broadcast
         self.pending_admin_add    = {}   # uid -> True while waiting for a new admin's user ID
@@ -973,34 +927,23 @@ class UzeronFreeBot:
             return True, [], False
 
         missing = []
-        broken  = []   # channels whose check errored (misconfigured — can't verify)
+        errors  = 0
         for _id, username, title, invite_link, _active in channels:
             ok, err = check_member(uid, username)
             if err:
-                broken.append((username, err))
-                print(f"ERROR: Force-join channel @{username} is misconfigured "
-                      f"(uid={uid}): {err!r} — bot is likely not an admin there. "
-                      f"Fix it via the Admin Panel → Channels, or check /checkjoin.")
+                errors += 1
+                print(f"WARNING: Channel check error uid={uid} @{username}: {err!r} — skipping")
                 continue
             if not ok:
                 missing.append(f"📢 {title or username}")
 
-        working_count = len(channels) - len(broken)
-
-        if working_count == 0:
-            # Every configured channel is broken — we have zero working
-            # checks, so we genuinely cannot enforce anything right now.
-            # Fail open rather than lock out every real user over a config
-            # mistake, but this is loud in the logs so it gets fixed fast.
-            print(f"WARNING: ALL {len(channels)} force-join channel(s) are "
-                  f"misconfigured (uid={uid}) — force-join is NOT being "
-                  f"enforced until at least one channel is fixed.")
+        if errors == len(channels):
+            # Every single check failed (e.g. bot not admin anywhere) — fail
+            # open so a config problem doesn't lock out every user.
+            print(f"WARNING: All membership checks failed uid={uid}. Failing open.")
             self._join_cache[uid] = True
             return True, [], True
 
-        # At least one channel could be verified — enforce it normally.
-        # A broken channel is simply excluded from the requirement (it
-        # can't silently wave the user through the ones that DO work).
         all_joined = len(missing) == 0
         if all_joined:
             self._join_cache[uid] = True
@@ -1391,7 +1334,7 @@ class UzeronFreeBot:
                 msg_count = len(self.db.get_promo_messages(uid))
                 expiry = self.db.get_premium_expiry(uid) if is_premium else None
                 edit_msg(uid, mid,
-                    dashboard_text(user, runtime, is_premium, expiry, msg_count, self.db.get_delays(uid)),
+                    dashboard_text(user, runtime, is_premium, expiry, msg_count),
                     dashboard_keyboard(is_premium)); return
 
             if data == 'upgrade':
@@ -1407,6 +1350,9 @@ class UzeronFreeBot:
                     "✍️ Send your redeem code as a text message now.\n"
                     "<i>/cancel to go back</i>",
                     kb([[{"text": "❌ Cancel", "callback_data": "dashboard"}]])); return
+
+            if data == 'delay_info':
+                await event.answer("60s message delay | 10min cycle.\nUpgrade for custom!", alert=True); return
 
             if data == 'account':
                 await event.answer()
@@ -1535,55 +1481,6 @@ class UzeronFreeBot:
                     schedule_keyboard(True))
                 return
 
-            # ── DELAYS (premium-only) ──────────────────────────────────────
-            if data == 'delays':
-                await event.answer()
-                msg_delay, cycle_delay = self.db.get_delays(uid)
-                if not is_premium:
-                    edit_msg(uid, mid,
-                        "⏱️ <b>Message &amp; Cycle Delay</b> 👑 <i>Premium Feature</i>\n\n"
-                        f"Free plan: fixed {FREE_MSG_DELAY}s message delay, "
-                        f"{FREE_CYCLE_DELAY//60}min cycle delay.\n\n"
-                        "Premium lets you set your own delays.\n\nUpgrade to unlock this.",
-                        delay_keyboard(False))
-                    return
-                edit_msg(uid, mid,
-                    f"⏱️ <b>Message &amp; Cycle Delay</b>\n\n"
-                    f"✉️ Message delay: <code>{msg_delay}s</code> (wait between each group send)\n"
-                    f"🔄 Cycle delay: <code>{cycle_delay//60}m {cycle_delay%60}s</code> "
-                    f"(wait between full broadcast rounds)\n\n"
-                    f"Lower delays send faster but raise flood-ban risk — use with care.",
-                    delay_keyboard(True))
-                return
-
-            if data in ('delay_msg', 'delay_cycle'):
-                await event.answer()
-                if not is_premium:
-                    await event.answer("💎 Premium feature — upgrade to customize delays.", alert=True)
-                    return
-                self.pending_delay[uid] = 'msg' if data == 'delay_msg' else 'cycle'
-                which = "Message" if data == 'delay_msg' else "Cycle"
-                edit_msg(uid, mid,
-                    f"✏️ <b>Set {which} Delay</b>\n\n"
-                    f"Send the delay in <b>seconds</b> (e.g. <code>45</code> for 45s, "
-                    f"<code>300</code> for 5 min). Minimum 5 seconds.\n"
-                    f"<i>/cancel to go back</i>",
-                    kb([[{"text": "❌ Cancel", "callback_data": "delays"}]]))
-                return
-
-            if data == 'delay_reset':
-                await event.answer()
-                if not is_premium:
-                    await event.answer("💎 Premium feature.", alert=True); return
-                self.db.reset_delays(uid)
-                msg_delay, cycle_delay = self.db.get_delays(uid)
-                edit_msg(uid, mid,
-                    f"✅ Reset to default.\n\n"
-                    f"✉️ Message delay: <code>{msg_delay}s</code>\n"
-                    f"🔄 Cycle delay: <code>{cycle_delay//60}m</code>",
-                    delay_keyboard(True))
-                return
-
             if data == 'logout':
                 await event.answer()
                 if uid in self.tasks: self.tasks[uid].cancel(); del self.tasks[uid]
@@ -1592,7 +1489,7 @@ class UzeronFreeBot:
                 new_user = self.db.get_user(uid)
                 edit_msg(uid, mid,
                     dashboard_text(new_user, 0, is_premium, self.db.get_premium_expiry(uid) if is_premium else None,
-                                   len(self.db.get_promo_messages(uid)), self.db.get_delays(uid)),
+                                   len(self.db.get_promo_messages(uid))),
                     dashboard_keyboard(is_premium))
                 send_msg(uid, "✅ Logged out successfully!")
                 user_log(uid,
@@ -1618,16 +1515,14 @@ class UzeronFreeBot:
                 new_user = self.db.get_user(uid)
                 edit_msg(uid, mid,
                     dashboard_text(new_user, runtime, is_premium,
-                                   self.db.get_premium_expiry(uid) if is_premium else None, len(msgs),
-                                   self.db.get_delays(uid)),
+                                   self.db.get_premium_expiry(uid) if is_premium else None, len(msgs)),
                     dashboard_keyboard(is_premium))
                 if is_premium:
                     start, end = self.db.get_schedule(uid)
-                    pmd, pcd = self.db.get_delays(uid)
                     send_msg(uid,
                         f"🚀 <b>Campaign Started!</b> 👑\n\n"
-                        f"📊 Unlimited groups  |  ⏱️ {pmd}s  |  "
-                        f"🔄 {pcd//60}m {pcd%60}s cycle  |  ⏳ Unlimited runtime\n"
+                        f"📊 Unlimited groups  |  ⏱️ {FREE_MSG_DELAY}s  |  "
+                        f"🔄 {FREE_CYCLE_DELAY//60}m cycle  |  ⏳ Unlimited runtime\n"
                         f"⏰ Schedule: {start} – {end} daily")
                 else:
                     send_msg(uid,
@@ -1654,7 +1549,7 @@ class UzeronFreeBot:
                 edit_msg(uid, mid,
                     dashboard_text(new_user, self.db.get_runtime_today(uid), is_premium,
                                    self.db.get_premium_expiry(uid) if is_premium else None,
-                                   len(self.db.get_promo_messages(uid)), self.db.get_delays(uid)),
+                                   len(self.db.get_promo_messages(uid))),
                     dashboard_keyboard(is_premium))
                 send_msg(uid, "🛑 <b>Campaign Stopped!</b>")
                 user_log(uid,
@@ -1681,7 +1576,7 @@ class UzeronFreeBot:
             if data == 'cancel_login':
                 await event.answer()
                 await self._cleanup_login(uid)
-                edit_msg(uid, mid, dashboard_text(user, runtime, is_premium, delays=self.db.get_delays(uid)), dashboard_keyboard(is_premium)); return
+                edit_msg(uid, mid, dashboard_text(user, runtime, is_premium), dashboard_keyboard(is_premium)); return
 
             if data.startswith('otp_'):
                 await self._handle_numpad(event, uid, mid, data, 'otp'); return
@@ -1719,14 +1614,14 @@ class UzeronFreeBot:
             if text == '/cancel':
                 await self._cleanup_login(uid)
                 for d in (self.pending_message, self.pending_new_message,
-                          self.pending_redeem, self.pending_schedule, self.pending_delay, self.broadcast_state,
+                          self.pending_redeem, self.pending_schedule, self.broadcast_state,
                           self.pending_admin_add, self.pending_channel_add,
                           self.pending_channel_link, self.pending_setting_edit):
                     if uid in d: del d[uid]
                 user       = self.db.get_user(uid)
                 runtime    = self.db.get_runtime_today(uid) if user else 0
                 is_premium = self.db.is_premium_active(uid)
-                send_msg(uid, dashboard_text(user, runtime, is_premium, delays=self.db.get_delays(uid)), dashboard_keyboard(is_premium)); return
+                send_msg(uid, dashboard_text(user, runtime, is_premium), dashboard_keyboard(is_premium)); return
 
             if uid in self.broadcast_state and uid in ADMINS:
                 if not text.startswith('/'):
@@ -1834,29 +1729,6 @@ class UzeronFreeBot:
                 start, end = self.db.get_schedule(uid)
                 send_msg(uid,
                     f"✅ <b>Schedule Updated!</b>\n\n🟢 Start: <code>{start}</code>\n🔴 Stop: <code>{end}</code>",
-                    kb([[{"text": "🏠 Dashboard", "callback_data": "dashboard"}]]))
-                return
-
-            # ── DELAY text input ──────────────────────────────────────────────
-            if uid in self.pending_delay and not text.startswith('/'):
-                which = self.pending_delay[uid]
-                if not text.strip().isdigit():
-                    send_msg(uid, "❌ Send a whole number of seconds, e.g. <code>45</code>.")
-                    return
-                seconds = int(text.strip())
-                if seconds < 5:
-                    send_msg(uid, "❌ Minimum delay is 5 seconds.")
-                    return
-                del self.pending_delay[uid]
-                if which == 'msg':
-                    self.db.set_msg_delay(uid, seconds)
-                else:
-                    self.db.set_cycle_delay(uid, seconds)
-                msg_delay, cycle_delay = self.db.get_delays(uid)
-                send_msg(uid,
-                    f"✅ <b>Delay Updated!</b>\n\n"
-                    f"✉️ Message delay: <code>{msg_delay}s</code>\n"
-                    f"🔄 Cycle delay: <code>{cycle_delay//60}m {cycle_delay%60}s</code>",
                     kb([[{"text": "🏠 Dashboard", "callback_data": "dashboard"}]]))
                 return
 
@@ -2102,13 +1974,6 @@ class UzeronFreeBot:
                 # Re-check premium status each loop (may have expired mid-campaign)
                 is_premium = self.db.is_premium_active(uid)
 
-                # Free users always get the fixed defaults; premium users get
-                # whatever they've set (defaults to the same values until changed).
-                if is_premium:
-                    msg_delay, cycle_delay = self.db.get_delays(uid)
-                else:
-                    msg_delay, cycle_delay = FREE_MSG_DELAY, FREE_CYCLE_DELAY
-
                 # ── Schedule gate (premium only) ─────────────────────────
                 if is_premium:
                     start, end = self.db.get_schedule(uid)
@@ -2166,7 +2031,7 @@ class UzeronFreeBot:
                         user_log(uid,
                             f"[<code>{phone}</code>] "
                             f"[✓] Sent to <b>{group.name}</b> ({group.entity.id})")
-                        await asyncio.sleep(msg_delay)
+                        await asyncio.sleep(FREE_MSG_DELAY)
                     except FloodWaitError as e:
                         send_msg(uid, f"⚠️ FloodWait {e.seconds}s — pausing…")
                         user_log(uid, f"[<code>{phone}</code>] ⚠️ FloodWait {e.seconds}s")
@@ -2186,7 +2051,7 @@ class UzeronFreeBot:
                     hl_line = f"⏳ {hl:.1f}h left"
                 send_msg(uid,
                     f"📊 <b>Round {round_num}</b> — ✅ {sent}  ❌ {failed}\n"
-                    f"{hl_line}  |  Next in {cycle_delay//60}m {cycle_delay%60}s",
+                    f"{hl_line}  |  Next in {FREE_CYCLE_DELAY//60}m",
                     kb([[{"text":"🛑 Stop","callback_data":"stopcampaign"}]]
                        + ([] if is_premium else [{"text":"💎 Upgrade","callback_data":"upgrade"}])))
                 user_log(uid,
@@ -2195,7 +2060,7 @@ class UzeronFreeBot:
                     f"✅ Sent: {sent}  ❌ Failed: {failed}\n"
                     f"{hl_line}\n"
                     f"🕐 {now_str}")
-                await asyncio.sleep(cycle_delay)
+                await asyncio.sleep(FREE_CYCLE_DELAY)
 
             await client.disconnect()
 
