@@ -28,8 +28,8 @@ OWNER_ID         = ENV_ADMINS[0] if ENV_ADMINS else None  # super-admin, can man
 # The values below are only the first-run defaults, seeded into bot_settings
 # the first time init_db() runs. After that the DB is the source of truth —
 # refresh_settings() reloads these module-level names whenever they change.
-CHANNEL_LINK      = "https://t.me/Uzeron_AdsBot"
-COMMUNITY_LINK    = "https://t.me/UzeronCommunity"
+CHANNEL_LINK      = "https://t.me/ffpannel_hack"
+COMMUNITY_LINK    = "https://t.me/CyberGhostXProofs"
 HOW_TO_USE_LINK   = "https://t.me/Uzeron_Ads"
 SUPPORT_LINK      = "https://t.me/Uzeron_Ads_support"
 CONTACT_USERNAME  = "@Pandaysubscription"
